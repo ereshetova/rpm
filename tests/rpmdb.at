@@ -1,0 +1,258 @@
+#    rpmdb.at: test rpmdb access
+#
+#    Copyright (C) 2007  Ralf Corsépius <corsepiu@fedoraproject.org>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+AT_BANNER([RPM database access])
+
+# ------------------------------
+# Attempt to initialize a rpmdb
+AT_SETUP([rpm --initdb])
+AT_KEYWORDS([rpmdb])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+],
+[0],
+[ignore],
+[ignore])
+AT_CLEANUP
+
+# ------------------------------
+# Run rpm -qa on an empty rpmdb
+AT_SETUP([rpm -qa])
+AT_KEYWORDS([rpmdb query])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+runroot rpm \
+  -qa
+],
+[0])
+AT_CLEANUP
+
+# ------------------------------
+# Run rpm -q <package> where <package> exists in the db.
+AT_SETUP([rpm -q foo])
+AT_KEYWORDS([rpmdb query])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+
+runroot rpm -i \
+  /data/RPMS/foo-1.0-1.noarch.rpm
+
+runroot rpm -q foo
+
+],
+[0],
+[foo-1.0-1.noarch
+],
+[])
+AT_CLEANUP
+
+# ------------------------------
+# Run rpm -q <package>- where <package> exists in the db.
+AT_SETUP([rpm -q foo-])
+AT_KEYWORDS([rpmdb query])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+
+runroot rpm -i \
+  /data/RPMS/foo-1.0-1.noarch.rpm
+
+runroot rpm -q foo-
+
+],
+[1],
+[package foo- is not installed
+],
+[])
+AT_CLEANUP
+
+# ------------------------------
+# install a noarch package into a local rpmdb without --relocate and --nodeps
+# * Should always succeed
+AT_SETUP([rpm -i *.noarch.rpm])
+AT_KEYWORDS([rpmdb install])
+
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+
+runroot rpm -i \
+  /data/RPMS/foo-1.0-1.noarch.rpm
+],
+[0])
+
+AT_CLEANUP
+
+# ------------------------------
+# reinstall a noarch package (with no files)
+AT_SETUP([rpm -U --replacepkgs])
+AT_KEYWORDS([rpmdb install])
+
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+
+tpkg="/data/RPMS/foo-1.0-1.noarch.rpm"
+
+runroot rpm -i "${tpkg}" && 
+  runroot rpm -U --replacepkgs "${tpkg}" &&
+  runroot rpm -qa
+],
+[0],
+[foo-1.0-1.noarch
+],
+[])
+
+AT_CLEANUP
+
+# ------------------------------
+# install a package into a local rpmdb
+# * Shall only work with relocation
+# * Use --ignorearch because we don't know the arch
+AT_SETUP([rpm -i --relocate=.. *.i386.rpm])
+AT_KEYWORDS([rpmdb install])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+
+runroot rpm -i \
+  --noscripts --nodeps --ignorearch --relocate=/usr=/check \
+  /data/RPMS/hello-1.0-1.i386.rpm
+],
+[0])
+
+AT_CLEANUP
+
+
+# ------------------------------
+# install a package into a local rpmdb
+# * Shall only work with relocation
+# * Use --ignorearch because we don't know the arch
+AT_SETUP([rpm -i --relocate=.. *.ppc64.rpm])
+AT_KEYWORDS([rpmdb install])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+
+runroot rpm -i \
+  --noscripts --nodeps --ignorearch --relocate=/usr=/check \
+  /data/RPMS/hello-1.0-1.ppc64.rpm
+],
+[0],
+[ignore],
+[ignore])
+
+AT_CLEANUP
+
+# ------------------------------
+# Install and verify status
+AT_SETUP([rpm -U and verify status])
+AT_KEYWORDS([install rpmdb query])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+rm -rf "${TOPDIR}"
+
+runroot rpmbuild --quiet -bb \
+        --define "pkg status" \
+	--define "filedata same_stuff" \
+          /data/SPECS/conflicttest.spec
+
+runroot rpm -U "${TOPDIR}"/RPMS/noarch/conflictstatus-1.0-1.noarch.rpm
+runroot rpm -qls conflictstatus
+],
+[0],
+[normal        /usr/share/my.version
+],
+[])
+AT_CLEANUP
+
+# ------------------------------
+# Install and verify status
+AT_SETUP([rpm -U with _install_lang and verify status])
+AT_KEYWORDS([install rpmdb query])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+rm -rf "${TOPDIR}"
+
+runroot rpmbuild --quiet -bb \
+          /data/SPECS/flangtest.spec
+
+runroot rpm -U --define "_install_langs de:fi" "${TOPDIR}"/RPMS/noarch/flangtest-1.0-1.noarch.rpm
+runroot rpm -qls flangtest
+],
+[0],
+[normal        /usr/share/flangtest/de.txt
+not installed /usr/share/flangtest/en.txt
+normal        /usr/share/flangtest/fi.txt
+normal        /usr/share/flangtest/none.txt
+not installed /usr/share/flangtest/pl.txt
+],
+[])
+AT_CLEANUP
+
+# ------------------------------
+# Install and verify files exist on disk
+AT_SETUP([rpm -U and verify files on disk])
+AT_KEYWORDS([install rpmdb])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+rm -rf "${TOPDIR}"
+rm -f "${RPMTEST}"/usr/share/my.version
+
+runroot rpmbuild --quiet -bb \
+        --define "pkg status" \
+	--define "filedata same_stuff" \
+          /data/SPECS/conflicttest.spec
+
+runroot rpm -U "${TOPDIR}"/RPMS/noarch/conflictstatus-1.0-1.noarch.rpm
+test -f "${RPMTEST}"/usr/share/my.version
+],
+[0],
+[],
+[])
+AT_CLEANUP
+
+# ------------------------------
+# Install, erase and verify files removed from disk
+AT_SETUP([rpm -e and verify files removed])
+AT_KEYWORDS([install rpmdb])
+AT_CHECK([
+RPMDB_CLEAR
+RPMDB_INIT
+rm -rf "${TOPDIR}"
+rm -f "${RPMTEST}"/usr/share/my.version
+
+runroot rpmbuild --quiet -bb \
+        --define "pkg status" \
+	--define "filedata same_stuff" \
+          /data/SPECS/conflicttest.spec
+
+runroot rpm -U "${TOPDIR}"/RPMS/noarch/conflictstatus-1.0-1.noarch.rpm
+runroot rpm -e conflictstatus
+test -f "${RPMTEST}"/usr/share/my.version
+],
+[1],
+[],
+[])
+AT_CLEANUP

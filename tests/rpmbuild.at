@@ -1,0 +1,124 @@
+#    rpmbuild.at: test rpmbuild
+#
+#    Copyright (C) 2007  Ralf Corsépius <corsepiu@fedoraproject.org>
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not, write to the Free Software
+#    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+AT_BANNER([RPM build])
+
+# ------------------------------
+# Check if rpmbuild -ba *.spec works
+AT_SETUP([rpmbuild -ba *.spec])
+AT_KEYWORDS([build])
+AT_CHECK([
+rm -rf ${TOPDIR}
+AS_MKDIR_P(${TOPDIR}/SOURCES)
+
+cp "${abs_srcdir}"/data/SOURCES/hello-1.0.tar.gz "${abs_srcdir}"/data/SOURCES/hello-1.0-modernize.patch ${TOPDIR}/SOURCES
+
+run rpmbuild \
+  -ba "${abs_srcdir}"/data/SPECS/hello.spec
+],
+[0],
+[ignore],
+[ignore])
+AT_CLEANUP
+
+# ------------------------------
+# Check if rpmbuild --rebuild *.src.rpm works
+AT_SETUP([rpmbuild --rebuild])
+AT_KEYWORDS([build])
+AT_CHECK([
+rm -rf ${TOPDIR}
+
+run rpmbuild \
+  --rebuild "${abs_srcdir}"/data/SRPMS/hello-1.0-1.src.rpm
+],
+[0],
+[ignore],
+[ignore])
+AT_CLEANUP
+
+# ------------------------------
+# Check if tar unpacking works
+AT_SETUP([rpmbuild -tb <tar with bad spec>])
+AT_KEYWORDS([build])
+AT_CHECK([
+rm -rf ${TOPDIR}
+
+run rpmbuild \
+  -tb "${RPMDATA}/SOURCES/hello-1.0.tar.gz"
+],
+[1],
+[ignore],
+[error: line 5: Unknown tag: Serial:	1
+])
+AT_CLEANUP
+
+# ------------------------------
+# Check if tar build works
+# TODO: test that the rpms are actually created...
+AT_SETUP([rpmbuild -tb])
+AT_KEYWORDS([build])
+AT_CHECK([
+rm -rf ${TOPDIR}
+
+run rpmbuild \
+  -ta "${RPMDATA}/SOURCES/hello-2.0.tar.gz"
+],
+[0],
+[ignore],
+[ignore])
+AT_CLEANUP
+
+# ------------------------------
+# %attr/%defattr tests
+AT_SETUP([rpmbuild %attr and %defattr])
+AT_KEYWORDS([build])
+AT_CHECK([[
+rm -rf ${TOPDIR}
+
+runroot rpmbuild \
+  -bb --quiet /data/SPECS/attrtest.spec
+
+runroot rpm -qp --qf \
+  "\n[%{filemodes:perms} %-8{fileusername} %-8{filegroupname} %{filenames}\n]"\
+  "${TOPDIR}"/RPMS/noarch/attrtest-1.0-1.noarch.rpm
+]],
+[0],
+[
+drwx------ root     root     /a/dir
+-r-------- root     root     /a/file
+drwx------ daemon   adm      /b/dir
+-r-------- daemon   adm      /b/file
+drwxr-x--- root     adm      /c/dir
+-rw-r----- daemon   root     /c/file
+drwxr-x--x daemon   bin      /d/dir
+-rw-r--r-- bin      daemon   /d/file
+drwx------ foo      bar      /e/dir
+-r-------- foo      bar      /e/file
+drwxrwx--- bar      foo      /f/dir
+-rw-rw---- bar      foo      /f/file
+drwx------ adm      foo      /g/dir
+-r-------- bar      adm      /g/file
+drwxr-xr-x foo      bar      /h/dir
+-rw-r--r-- foo      bar      /h/file
+drwxr-x--- adm      root     /i/dir
+-rwsr-xr-x root     adm      /i/file
+drwxrwxrwx zoot     zoot     /j/dir
+--w--w--w- zoot     zoot     /j/file
+],
+[])
+AT_CLEANUP
