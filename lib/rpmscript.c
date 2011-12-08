@@ -13,6 +13,7 @@
 
 #include "rpmio/rpmlua.h"
 #include "lib/rpmscript.h"
+#include "lib/rpmsecurity.h"
 
 #include "debug.h"
 
@@ -169,7 +170,8 @@ static void doScriptExec(int selinux, ARGV_const_t argv, ARGV_const_t prefixes,
 	}
 
 	if (xx == 0) {
-	    xx = execv(argv[0], argv);
+	    /* Exec the scriptlet through security plugin */
+	    xx = rpmsecurityCallScriptExec(argv);
 	}
     }
     _exit(127); /* exit 127 for compatibility with bash(1) */
@@ -291,7 +293,7 @@ exit:
     if (fn) {
 	if (!rpmIsDebug())
 	    unlink(fn);
-	free(fn);
+	if (fn) fn =_free(fn);
     }
     return rc;
 }

@@ -20,6 +20,7 @@
 #include "lib/rpmte_internal.h"	/* only internal apis */
 #include "lib/rpmts_internal.h"
 #include "rpmio/rpmhook.h"
+#include "lib/rpmsecurity.h"
 
 /* XXX FIXME: merge with existing (broken?) tests in system.h */
 /* portability fiddles */
@@ -395,6 +396,9 @@ static void handleInstInstalledFile(const rpmts ts, rpmte p, rpmfi fi, int fx,
 		    rConflicts = 0;
 	    }
 	}
+
+	/* Call security plugin to check the file conflict. */
+	rConflicts = rpmsecurityCallFileConflict(ts, p, fi, otherHeader, otherFi, rConflicts);
 
 	if (rConflicts) {
 	    /* If enabled, resolve colored conflicts to preferred type */
@@ -1498,6 +1502,13 @@ int rpmtsRun(rpmts ts, rpmps okProbs, rpmprobFilterFlags ignoreSet)
 	goto exit;
     }
 
+    /* Setup the security plugin */
+    if (rpmsecuritySetupPlugin(ts)) {
+#ifdef ENFORCE_SECURITY
+	goto exit;
+#endif
+    }
+
     rpmtsSetupCollections(ts);
 
     /* Check package set for problems */
@@ -1530,8 +1541,15 @@ int rpmtsRun(rpmts ts, rpmps okProbs, rpmprobFilterFlags ignoreSet)
     tsprobs = rpmpsFree(tsprobs);
     rpmtsCleanProblems(ts);
 
+    /* Call security plugin */
+    rpmsecurityCallPreTsm(ts);
+
     /* Actually install and remove packages, get final exit code */
     rc = rpmtsProcess(ts) ? -1 : 0;
+
+    /* Call security plugin */
+    rpmsecurityCallPostTsm(ts);
+
 
     /* Run post-transaction scripts unless disabled */
     if (!(rpmtsFlags(ts) & (RPMTRANS_FLAG_NOPOST))) {

@@ -618,7 +618,7 @@ doDefine(MacroBuf mb, const char * se, int level, int expandbody)
 
 exit:
     _free(buf);
-    _free(ebody);
+    if (ebody) _free(ebody);
     return se;
 }
 

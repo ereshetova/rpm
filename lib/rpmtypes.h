@@ -81,6 +81,7 @@ typedef uint32_t rpmsid;
 typedef struct rpmstrPool_s * rpmstrPool;
 
 typedef struct rpmPlugins_s * rpmPlugins;
+typedef struct rpmSecurity_s * rpmSecurity;
 
 typedef struct rpmgi_s * rpmgi;
 

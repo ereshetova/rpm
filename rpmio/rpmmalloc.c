@@ -80,6 +80,6 @@ char * rstrdup (const char *str)
 
 void * rfree (void *ptr)
 {
-    free(ptr);
+    if (ptr) free(ptr);
     return NULL;
 }

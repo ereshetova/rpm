@@ -25,6 +25,7 @@
 #include "lib/rpmts_internal.h"	/* rpmtsSELabelFoo() only */
 #include "lib/rpmug.h"
 #include "lib/cpio.h"
+#include "lib/rpmsecurity.h"
 
 #include "debug.h"
 
@@ -747,11 +748,18 @@ static int expandRegular(FSM_t fsm, rpmpsm psm, rpmcpio_t archive, int nodigest)
 
     while (left) {
         size_t len;
-	len = (left > fsm->bufsize ? fsm->bufsize : left);
+	    len = (left > fsm->bufsize ? fsm->bufsize : left);
         if (rpmcpioRead(archive, fsm->buf, len) != len) {
             rc = CPIOERR_READ_FAILED;
 	    goto exit;
         }
+
+	/* Call security plugin to update file status. */
+	rc = rpmsecurityCallFsmUpdated(&fsm->sb, fsm->buf, len);
+	if (rc)
+	    goto exit;
+
+
 	if ((Fwrite(fsm->buf, sizeof(*fsm->buf), len, wfd) != len) || Ferror(wfd)) {
 	    rc = CPIOERR_WRITE_FAILED;
 	    goto exit;
@@ -1024,7 +1032,7 @@ static int fsmMakeLinks(FSM_t fsm)
     rc = fsmMapPath(fsm);
     opath = fsm->path;
     fsm->path = NULL;
-    for (i = 0; i < fsm->li->nlink; i++) {
+    for (i = 0; fsm->li && i < fsm->li->nlink; i++) {
 	if (fsm->li->filex[i] < 0) continue;
 	if (fsm->li->createdPath == i) continue;
 
@@ -1569,6 +1577,10 @@ static int fsmCommit(FSM_t fsm)
         if (!rc && !getuid()) {
             rc = fsmSetSELabel(fsm->sehandle, fsm->path, fsm->sb.st_mode);
         }
+	if (!rc) {
+	    /* Call security plugin with return code to finish the file. */
+	    rc = rpmsecurityCallFsmClosed(fsm->dirName, fsm->baseName, fsm->rc);
+	}
         if (S_ISLNK(st->st_mode)) {
             if (!rc && !getuid())
                 rc = fsmLChown(fsm->path, fsm->sb.st_uid, fsm->sb.st_gid);
@@ -1700,7 +1712,14 @@ int rpmPackageFilesInstall(rpmts ts, rpmte te, rpmfi fi, FD_t cfd,
             break;
         }
 
-	setFileState(rpmteGetFileStates(te), fsm->ix, fsm->action);
+	    setFileState(rpmteGetFileStates(te), fsm->ix, fsm->action);
+
+        /* Call security plugin to start up for a file. */
+	    rc = rpmsecurityCallFsmOpened(fsm->dirName, fsm->baseName);
+	    if (rc) {
+            fsm->postpone = 1;
+		    break;
+	    }
 
         if (!fsm->postpone) {
             if (S_ISREG(st->st_mode)) {
@@ -1781,6 +1800,7 @@ int rpmPackageFilesInstall(rpmts ts, rpmte te, rpmfi fi, FD_t cfd,
             rc = ((S_ISREG(st->st_mode) && st->st_nlink > 1)
                   ? fsmCommitLinks(fsm) : fsmCommit(fsm));
         }
+
         if (rc) {
             break;
         }

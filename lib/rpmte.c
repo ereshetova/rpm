@@ -14,6 +14,7 @@
 #include <rpm/rpmlog.h>
 
 #include "lib/rpmplugins.h"
+#include "lib/rpmsecurity.h"
 #include "lib/rpmte_internal.h"
 
 #include "debug.h"
@@ -940,7 +941,7 @@ int rpmteProcess(rpmte te, pkgGoal goal)
     int scriptstage = (goal != PKG_INSTALL && goal != PKG_ERASE);
     int test = (rpmtsFlags(te->ts) & RPMTRANS_FLAG_TEST);
     int reset_fi = (scriptstage == 0 && test == 0);
-    int failed = 1;
+    int failed = 0;
 
     /* Dont bother opening for elements without pre/posttrans scripts */
     if (goal == PKG_PRETRANS || goal == PKG_POSTTRANS) {
@@ -954,7 +955,17 @@ int rpmteProcess(rpmte te, pkgGoal goal)
     }
 
     if (rpmteOpen(te, reset_fi)) {
-	failed = rpmpsmRun(te->ts, te, goal);
+	/* Call security plugin to set te for next operations */
+   	/* But do not call plugin for the pre/posttrans scripts */
+   	if (goal != PKG_PRETRANS && goal != PKG_POSTTRANS)
+		failed = rpmsecurityCallPrePsm(te);
+	if (!failed) {
+		failed = rpmpsmRun(te->ts, te, goal);
+		/* Call security plugin to finish any te related tasks */
+       		/* But do not call plugin for the pre/posttrans scripts */
+       		if (goal != PKG_PRETRANS && goal != PKG_POSTTRANS)
+			failed = rpmsecurityCallPostPsm(te, te->ts->rootDir, failed);
+	}
 	rpmteClose(te, reset_fi);
     }
     

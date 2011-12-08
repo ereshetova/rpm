@@ -17,6 +17,7 @@
 #include "rpmio/digest.h"
 #include "rpmio/rpmio_internal.h"	/* fd digest bits */
 #include "lib/header_internal.h"	/* XXX headerCheck */
+#include "lib/rpmsecurity.h" /* security hooks */
 
 #include "debug.h"
 
@@ -642,6 +643,9 @@ static rpmRC rpmpkgRead(rpmKeyring keyring, rpmVSFlags vsflags,
 
     /** @todo Implement disable/enable/warn/error/anal policy. */
     rc = rpmVerifySignature(keyring, &sigtd, sig, ctx, &msg);
+
+    /* Call security plugin to verify the signature. */
+    rc = rpmsecurityCallVerify(keyring, &sigtd, sig, rc);
 	
     switch (rc) {
     case RPMRC_OK:		/* Signature is OK. */

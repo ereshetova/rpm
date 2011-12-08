@@ -823,6 +823,7 @@ static VFA_t const virtualAttrs[] = {
     { "%readme",	RPMFILE_README },
     { "%license",	RPMFILE_LICENSE },
     { "%pubkey",	RPMFILE_PUBKEY },
+	{ "%manifest",	RPMFILE_SECMANIFEST },
     { NULL, 0 }
 };
 
@@ -837,7 +838,7 @@ static rpmRC parseForSimple(char * buf, FileEntry cur, ARGV_t * fileNames)
 {
     char *s, *t;
     rpmRC res = RPMRC_OK;
-    int allow_relative = (RPMFILE_PUBKEY|RPMFILE_DOC|RPMFILE_LICENSE);
+    int allow_relative = (RPMFILE_PUBKEY|RPMFILE_DOC|RPMFILE_LICENSE|RPMFILE_SECMANIFEST);
 
     t = buf;
     while ((s = strtokWithQuotes(t, " \t\n")) != NULL) {
@@ -850,9 +851,9 @@ static rpmRC parseForSimple(char * buf, FileEntry cur, ARGV_t * fileNames)
 	/* normally paths need to be absolute */
 	if (*s != '/') {
 	   if (!(cur->attrFlags & allow_relative)) {
-		rpmlog(RPMLOG_ERR, _("File must begin with \"/\": %s\n"), s);
-		res = RPMRC_FAIL;
-		continue;
+		    rpmlog(RPMLOG_ERR, _("File must begin with \"/\": %s\n"), s);
+		    res = RPMRC_FAIL;
+		    continue;
 	    }
 	    /* non-absolute %doc and %license paths are special */
 	    if (cur->attrFlags & (RPMFILE_DOC | RPMFILE_LICENSE))
@@ -1551,6 +1552,14 @@ static rpmRC processMetadataFile(Package pkg, FileList fl,
 	apkt = pgpArmorWrap(PGPARMOR_PUBKEY, pkt, pktlen);
 	break;
     }
+    case RPMTAG_SECMANIFEST:
+	    if ((xx = rpmioSlurp(fn, &pkt, &pktlen)) != 0 || pkt == NULL) {
+	        rpmlog(RPMLOG_ERR, _("%s: Security manifest file read failed.\n"), fn);
+	        goto exit;
+	    }
+	    apkt = rpmBase64Encode(pkt, pktlen, -1);
+	    rpmlog(RPMLOG_INFO, _("Aptk: %s\n"), apkt);
+	    break;
     }
 
     if (!apkt) {
@@ -1889,6 +1898,8 @@ static rpmRC processPackageFiles(rpmSpec spec, rpmBuildPkgFlags pkgFlags,
 		argvAdd(&(fl.docDirs), *fn);
 	    } else if (fl.cur.attrFlags & RPMFILE_PUBKEY) {
 		(void) processMetadataFile(pkg, &fl, *fn, RPMTAG_PUBKEYS);
+	    } else if (fl.currentFlags & RPMFILE_SECMANIFEST) {
+	    (void) processMetadataFile(pkg, &fl, *fn, RPMTAG_SECMANIFEST);
 	    } else {
 		if (fl.cur.attrFlags & RPMFILE_DIR)
 		    fl.cur.isDir = 1;

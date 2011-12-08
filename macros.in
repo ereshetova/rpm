@@ -1030,6 +1030,8 @@ done \
 %__collection_sepolicy		%{__plugindir}/sepolicy.so
 %__collection_sepolicy_flags	1
 
+%__security_plugin		%{__plugindir}/msm.so
+
 #------------------------------------------------------------------------------
 # Macros for further automated spec %setup and patch application
 
@@ -1101,6 +1103,7 @@ end}
 %{-S:%global __scm %{-S*}}\
 %{-S:%{expand:%__scm_setup_%{-S*} %{!-v:-q}}}\
 %{!-N:%autopatch %{-v} %{-p:-p%{-p*}}}
+
 
 # \endverbatim
 #*/
