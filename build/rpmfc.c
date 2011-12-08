@@ -664,81 +664,83 @@ void rpmfcPrint(const char * msg, rpmfc fc, FILE * fp)
     int dx;
     int fx;
 
-int nprovides;
-int nrequires;
+    int nprovides;
+    int nrequires;
 
     if (fp == NULL) fp = stderr;
 
     if (msg)
 	fprintf(fp, "===================================== %s\n", msg);
 
-nprovides = rpmdsCount(fc->provides);
-nrequires = rpmdsCount(fc->requires);
 
-    if (fc)
-    for (fx = 0; fx < fc->nfiles; fx++) {
-assert(fx < fc->fcdictx->nvals);
-	cx = fc->fcdictx->vals[fx];
-assert(fx < fc->fcolor->nvals);
-	fcolor = fc->fcolor->vals[fx];
-	ARGV_t fattrs = fc->fattrs[fx];
+    if (fc) {
+	
+	nprovides = rpmdsCount(fc->provides);
+	nrequires = rpmdsCount(fc->requires);
+    	for (fx = 0; fx < fc->nfiles; fx++) {
+		assert(fx < fc->fcdictx->nvals);
+		cx = fc->fcdictx->vals[fx];
+		assert(fx < fc->fcolor->nvals);
+		fcolor = fc->fcolor->vals[fx];
+		ARGV_t fattrs = fc->fattrs[fx];
 
-	fprintf(fp, "%3d %s", fx, fc->fn[fx]);
-	if (fcolor != RPMFC_BLACK)
-		fprintf(fp, "\t0x%x", fc->fcolor->vals[fx]);
-	else
-		fprintf(fp, "\t%s", fc->cdict[cx]);
-	if (fattrs) {
-	    char *attrs = argvJoin(fattrs, ",");
-	    fprintf(fp, " [%s]", attrs);
-	    free(attrs);
-	} else {
-	    fprintf(fp, " [none]");
-	}
-	fprintf(fp, "\n");
-
-	if (fc->fddictx == NULL || fc->fddictn == NULL)
-	    continue;
-
-assert(fx < fc->fddictx->nvals);
-	dx = fc->fddictx->vals[fx];
-assert(fx < fc->fddictn->nvals);
-	ndx = fc->fddictn->vals[fx];
-
-	while (ndx-- > 0) {
-	    const char * depval;
-	    unsigned char deptype;
-	    unsigned ix;
-
-	    ix = fc->ddictx->vals[dx++];
-	    deptype = ((ix >> 24) & 0xff);
-	    ix &= 0x00ffffff;
-	    depval = NULL;
-	    switch (deptype) {
-	    default:
-assert(depval != NULL);
-		break;
-	    case 'P':
-		if (nprovides > 0) {
-assert(ix < nprovides);
-		    (void) rpmdsSetIx(fc->provides, ix-1);
-		    if (rpmdsNext(fc->provides) >= 0)
-			depval = rpmdsDNEVR(fc->provides);
+		fprintf(fp, "%3d %s", fx, fc->fn[fx]);
+		if (fcolor != RPMFC_BLACK)
+			fprintf(fp, "\t0x%x", fc->fcolor->vals[fx]);
+		else
+			fprintf(fp, "\t%s", fc->cdict[cx]);
+		if (fattrs) {
+		    char *attrs = argvJoin(fattrs, ",");
+		    fprintf(fp, " [%s]", attrs);
+		    free(attrs);
+		} else {
+		    fprintf(fp, " [none]");
 		}
-		break;
-	    case 'R':
-		if (nrequires > 0) {
-assert(ix < nrequires);
-		    (void) rpmdsSetIx(fc->requires, ix-1);
-		    if (rpmdsNext(fc->requires) >= 0)
-			depval = rpmdsDNEVR(fc->requires);
+		fprintf(fp, "\n");
+
+		if (fc->fddictx == NULL || fc->fddictn == NULL)
+		    continue;
+
+		assert(fx < fc->fddictx->nvals);
+		dx = fc->fddictx->vals[fx];
+		assert(fx < fc->fddictn->nvals);
+		ndx = fc->fddictn->vals[fx];
+
+		while (ndx-- > 0) {
+		    const char * depval;
+		    unsigned char deptype;
+		    unsigned ix;
+
+		    ix = fc->ddictx->vals[dx++];
+		    deptype = ((ix >> 24) & 0xff);
+		    ix &= 0x00ffffff;
+		    depval = NULL;
+		    switch (deptype) {
+			    default:
+				assert(depval != NULL);
+				break;
+			    case 'P':
+				if (nprovides > 0) {
+					assert(ix < nprovides);
+				    	(void) rpmdsSetIx(fc->provides, ix-1);
+				    	if (rpmdsNext(fc->provides) >= 0)
+						depval = rpmdsDNEVR(fc->provides);
+				}
+				break;
+			    case 'R':
+				if (nrequires > 0) {
+					assert(ix < nrequires);
+				    	(void) rpmdsSetIx(fc->requires, ix-1);
+				    	if (rpmdsNext(fc->requires) >= 0)
+						depval = rpmdsDNEVR(fc->requires);
+				}
+				break;
+		    }
+	    	    if (depval)
+			fprintf(fp, "\t%s\n", depval);
 		}
-		break;
-	    }
-	    if (depval)
-		fprintf(fp, "\t%s\n", depval);
-	}
-    }
+    	}
+   }
 }
 
 rpmfc rpmfcFree(rpmfc fc)

@@ -62,6 +62,7 @@ enum rpmfileAttrs_e {
     RPMFILE_EXCLUDE	= (1 <<  9),	/*!< from %%exclude, internal */
     RPMFILE_UNPATCHED	= (1 << 10),	/*!< placeholder (SuSE) */
     RPMFILE_PUBKEY	= (1 << 11),	/*!< from %%pubkey */
+    RPMFILE_SECMANIFEST	= (1 << 12),	/*!< from %%manifest */
 };
 
 typedef rpmFlags rpmfileAttrs;

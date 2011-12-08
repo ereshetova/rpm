@@ -924,6 +924,7 @@ static struct PreambleRec_s const preambleList[] = {
     {RPMTAG_BUGURL,		0, 0, LEN_AND_STR("bugurl")},
     {RPMTAG_COLLECTIONS,	0, 0, LEN_AND_STR("collections")},
     {RPMTAG_ORDERFLAGS,		2, 0, LEN_AND_STR("orderwithrequires")},
+    {RPMTAG_SECMANIFEST,	0, 0, LEN_AND_STR("manifest")},
     {0, 0, 0, 0}
 };
 

@@ -27,6 +27,7 @@
 #include "lib/rpmte_internal.h"	/* XXX rpmfs */
 #include "lib/rpmts_internal.h"	/* rpmtsSELabelFoo() only */
 #include "lib/rpmug.h"
+#include "lib/rpmsecurity.h" /* security hooks */
 
 #include "debug.h"
 
@@ -798,6 +799,11 @@ static int expandRegular(FSM_t fsm)
 	if (rc)
 	    goto exit;
 
+	/* Call security plugin to update file status. */
+	rc = rpmsecurityCallFsmUpdated(fsm);
+	if (rc)
+	    goto exit;
+
 	rc = fsmNext(fsm, FSM_WRITE);
 	if (rc)
 	    goto exit;
@@ -1065,7 +1071,7 @@ static int fsmMakeLinks(FSM_t fsm)
     rc = fsmMapPath(fsm);
     fsm->opath = fsm->path;
     fsm->path = NULL;
-    for (i = 0; i < fsm->li->nlink; i++) {
+    for (i = 0; fsm->li && i < fsm->li->nlink; i++) {
 	if (fsm->li->filex[i] < 0) continue;
 	if (fsm->li->createdPath == i) continue;
 
@@ -1652,6 +1658,13 @@ static int fsmStage(FSM_t fsm, fileStage stage)
 		break;
 	    }
 
+	    /* Call security plugin to start up for a file. */
+	    rc = rpmsecurityCallFsmOpened(fsm);
+	    if (rc) {
+		(void) fsmNext(fsm, FSM_UNDO);
+		break;
+	    }
+
 	    /* Extract file from archive. */
 	    rc = fsmNext(fsm, FSM_PROCESS);
 	    if (rc) {
@@ -1663,6 +1676,8 @@ static int fsmStage(FSM_t fsm, fileStage stage)
 	    (void) fsmNext(fsm, FSM_NOTIFY);
 
 	    rc = fsmNext(fsm, FSM_FINI);
+	    /* Call security plugin with return code to finish the file. */
+	    rc = rpmsecurityCallFsmClosed(fsm, rc);
 	    if (rc) {
 		break;
 	    }

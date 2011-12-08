@@ -33,7 +33,11 @@ if HAVE_FAKECHROOT
 SUBDIRS += tests
 endif
 
-DIST_SUBDIRS = po misc luaext rpmio lib sign build python scripts fileattrs doc tests plugins
+if ENABLE_SECURITY
+SUBDIRS += security
+endif
+
+DIST_SUBDIRS = po misc luaext rpmio lib sign build python scripts fileattrs doc tests plugins security
 
 pkgconfigdir = $(libdir)/pkgconfig
 
@@ -87,6 +91,9 @@ pkginclude_HEADERS += sign/rpmsign.h
 pkginclude_HEADERS += build/rpmbuild.h
 pkginclude_HEADERS += build/rpmfc.h
 pkginclude_HEADERS += build/rpmspec.h
+
+pkginclude_HEADERS += lib/rpmplugins.h
+pkginclude_HEADERS += lib/rpmsecurity.h
 
 
 rpmbindir = `echo $(bindir) | $(SED) -e s,usr/bin,bin,`

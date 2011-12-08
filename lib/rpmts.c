@@ -25,6 +25,7 @@
 #include "lib/rpmal.h"
 #include "lib/rpmchroot.h"
 #include "lib/rpmplugins.h"
+#include "lib/rpmsecurity.h"
 #include "lib/rpmts_internal.h"
 #include "lib/rpmte_internal.h"
 #include "lib/misc.h"
@@ -657,6 +658,9 @@ rpmts rpmtsFree(rpmts ts)
     ts->installLangs = argvFree(ts->installLangs);
 
     ts->plugins = rpmpluginsFree(ts->plugins);
+
+    /* Free security plugin here also. */
+    rpmsecurityFreePlugin();
 
     if (_rpmts_stats)
 	rpmtsPrintStats(ts);

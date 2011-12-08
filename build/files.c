@@ -809,6 +809,7 @@ static VFA_t virtualFileAttributes[] = {
 	{ "%readme",	0,	RPMFILE_README },
 	{ "%license",	0,	RPMFILE_LICENSE },
 	{ "%pubkey",	0,	RPMFILE_PUBKEY },
+	{ "%manifest",	0,	RPMFILE_SECMANIFEST },
 	{ NULL, 0, 0 }
 };
 
@@ -876,7 +877,7 @@ static rpmRC parseForSimple(rpmSpec spec, Package pkg, char * buf,
 	    if (fl->currentFlags & RPMFILE_DOC) {
 		rstrscat(&specialDocBuf, " ", s, NULL);
 	    } else
-	    if (fl->currentFlags & RPMFILE_PUBKEY)
+	    if (fl->currentFlags & (RPMFILE_PUBKEY|RPMFILE_SECMANIFEST))
 	    {
 		*fileName = s;
 	    } else {
@@ -1592,6 +1593,14 @@ static rpmRC processMetadataFile(Package pkg, FileList fl,
 	apkt = pgpArmorWrap(PGPARMOR_PUBKEY, pkt, pktlen);
 	break;
     }
+    case RPMTAG_SECMANIFEST:
+	if ((xx = rpmioSlurp(fn, &pkt, &pktlen)) != 0 || pkt == NULL) {
+	    rpmlog(RPMLOG_ERR, _("%s: Security manifest file read failed.\n"), fn);
+	    goto exit;
+	}
+	apkt = b64encode(pkt, pktlen, -1);
+	rpmlog(RPMLOG_INFO, _("Aptk: %s\n"), apkt);
+	break;
     }
 
     if (!apkt) {
@@ -1847,7 +1856,9 @@ static rpmRC processPackageFiles(rpmSpec spec, rpmBuildPkgFlags pkgFlags,
 	    dupAttrRec(&fl.def_ar, def_specialDocAttrRec);
 	} else if (fl.currentFlags & RPMFILE_PUBKEY) {
 	    (void) processMetadataFile(pkg, &fl, fileName, RPMTAG_PUBKEYS);
-	} else {
+	} else if (fl.currentFlags & RPMFILE_SECMANIFEST) {
+	    (void) processMetadataFile(pkg, &fl, fileName, RPMTAG_SECMANIFEST);
+	else {
 	    (void) processBinaryFile(pkg, &fl, fileName);
 	}
     }

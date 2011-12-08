@@ -1050,5 +1050,7 @@ done \
 %__collection_sepolicy		%{__plugindir}/sepolicy.so
 %__collection_sepolicy_flags	1
 
+%__security_plugin		%{__plugindir}/msm.so
+
 # \endverbatim
 #*/

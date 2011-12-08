@@ -14,6 +14,7 @@
 #include <rpm/rpmlog.h>
 
 #include "lib/rpmplugins.h"
+#include "lib/rpmsecurity.h"
 #include "lib/rpmte_internal.h"
 
 #include "debug.h"
@@ -912,7 +913,13 @@ int rpmteProcess(rpmte te, pkgGoal goal)
     }
 
     if (rpmteOpen(te, reset_fi)) {
-	failed = rpmpsmRun(te->ts, te, goal);
+	/* Call security plugin to set te for next operations */
+	failed = rpmsecurityCallPrePsm(te);
+	if (!failed) {
+	    failed = rpmpsmRun(te->ts, te, goal);
+	    /* Call security plugin to finish any te related tasks */
+	    failed = rpmsecurityCallPostPsm(te, failed);
+	}
 	rpmteClose(te, reset_fi);
     }
     

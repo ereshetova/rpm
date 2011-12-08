@@ -633,6 +633,68 @@ AC_SUBST(WITH_SELINUX_LIB)
 AC_SUBST(WITH_SEMANAGE_LIB)
 AM_CONDITIONAL(SELINUX,[test "$with_selinux" = yes])
 
+
+# msm
+WITH_MSM_LIB=
+WITH_MSM_INCLUDE=
+AC_ARG_WITH(msm, [AS_HELP_STRING([--with-msm],[build with msm support])],
+[case "$with_msm" in
+yes|no) ;;
+*) AC_MSG_ERROR([invalid argument to --with-msm])
+  ;;
+esac],
+[with_msm=no])
+
+AS_IF([test "$with_msm" = yes],[
+#  AC_CHECK_HEADER([libxml2/libxml/xmlreader.h],[
+    save_LIBS="$LIBS"
+    AC_CHECK_LIB([xml2],[xmlReaderForMemory],[],[
+      AC_MSG_ERROR([--with-msm given, but xmlReaderForMemory not found in libxml2])])
+    LIBS="$save_LIBS"
+#  ],[
+#    AC_MSG_ERROR([--with-mssf given, but libxml2/libxml/xmlreader.h not found])
+#  ])
+  AC_CHECK_HEADER([sys/capability.h],[
+    save_LIBS="$LIBS"
+    AC_CHECK_LIB([cap],[cap_set_file],[],[
+      AC_MSG_ERROR([--with-msm given, but cap_set_file not found in libcap])])
+    LIBS="$save_LIBS"
+  ],[
+    AC_MSG_ERROR([--with-msm given, but sys/capability.h not found])
+  ])
+  AC_CHECK_HEADER([attr/xattr.h],[
+    save_LIBS="$LIBS"
+    AC_CHECK_LIB([attr],[setxattr],[],[
+      AC_MSG_ERROR([--with-msm given, but setxattr not found in libattr])])
+    LIBS="$save_LIBS"
+  ],[
+    AC_MSG_ERROR([--with-msm given, but attr/xattr.h not found])
+  ])
+  AC_CHECK_HEADER([uthash.h],[
+    save_LIBS="$LIBS"
+    LIBS="$save_LIBS"
+  ],[
+    AC_MSG_ERROR([--with-msm given, but uthash.h not found])
+  ])
+  AC_CHECK_HEADER([sys/smack.h],[
+     save_LIBS="$LIBS"
+    LIBS="$save_LIBS"
+   ],[
+     AC_MSG_ERROR([--with-msm given, but smack.h not found])
+   ])
+])
+
+AS_IF([test "$with_msm" = yes],[
+  AC_DEFINE(WITH_MSM, 1, [Build with msm support?])
+  WITH_MSM_LIB="`xml2-config --libs` -lcap -lattr -lsmack"
+  WITH_MSM_INCLUDE="`xml2-config --cflags`"
+])
+AC_SUBST(WITH_MSM_LIB)
+AC_SUBST(WITH_MSM_INCLUDE)
+AM_CONDITIONAL(MSM,[test "$with_msm" = yes])
+
+
+
 # libcap
 WITH_CAP_LIB=
 AC_ARG_WITH(cap, [AS_HELP_STRING([--with-cap],[build with capability support])],
@@ -712,6 +774,11 @@ AS_IF([test "$enable_plugins" = yes],[
 ])
 AM_CONDITIONAL(ENABLE_PLUGINS,[test "$enable_plugins" = yes])
 
+AC_ARG_ENABLE(security, [AS_HELP_STRING([--disable-security],[build without security plugin support])],,[enable_security=yes])
+AS_IF([test "$enable_security" = yes],[
+  AC_DEFINE(ENABLE_SECURITY, 1, [Build with security plugin support?])
+])
+AM_CONDITIONAL(ENABLE_SECURITY,[test "$enable_security" = yes])
 
 with_dmalloc=no
 AC_ARG_WITH(dmalloc, [AS_HELP_STRING([--with-dmalloc],[build with dmalloc debugging support])])
@@ -814,5 +881,6 @@ AC_CONFIG_FILES([Makefile
  	tests/Makefile
  	plugins/Makefile
 	python/setup.py
+	security/Makefile
   ])
 AC_OUTPUT

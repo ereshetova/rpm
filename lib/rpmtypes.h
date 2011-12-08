@@ -78,6 +78,7 @@ typedef struct rpmPubkey_s * rpmPubkey;
 typedef struct rpmKeyring_s * rpmKeyring;
 
 typedef struct rpmPlugins_s * rpmPlugins;
+typedef struct rpmSecurity_s * rpmSecurity;
 
 typedef struct rpmgi_s * rpmgi;
 
