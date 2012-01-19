@@ -536,9 +536,9 @@ rpmRC SECURITYHOOK_PRE_PSM_FUNC(rpmte te)
 rpmRC SECURITYHOOK_SCRIPT_EXEC_FUNC(ARGV_const_t argv)
 {
 
-/* no functionality yet for scripts, just return ok */
+/* no functionality yet for scripts, just execute it */
 
-    return RPMRC_OK;
+    return execv(argv[0], argv);
 }
 
 rpmRC SECURITYHOOK_FSM_OPENED_FUNC(FSM_t fsm)
